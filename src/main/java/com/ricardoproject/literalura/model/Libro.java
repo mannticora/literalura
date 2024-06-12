@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "libros")
+@Table(name = "libro")
 
 public class Libro {
     @Id
@@ -23,7 +23,7 @@ public class Libro {
     @JoinColumn(name = "autor_id")
     private Autor autor;
 
-    public Libro(){}
+    public Libro(Datos datos){}
     public Libro(DatosLibro datosLibro, Autor autores){
         this.titulo = datosLibro.libro();
         this.idioma = datosLibro.idioma();

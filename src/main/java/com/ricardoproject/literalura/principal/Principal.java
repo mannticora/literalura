@@ -1,12 +1,14 @@
 package com.ricardoproject.literalura.principal;
 
-import com.ricardoproject.literalura.model.Datos;
-import com.ricardoproject.literalura.model.DatosAutor;
-import com.ricardoproject.literalura.model.DatosLibro;
+import com.ricardoproject.literalura.model.*;
+
+import com.ricardoproject.literalura.repository.AutorRepository;
+import com.ricardoproject.literalura.repository.LibroRepository;
 import com.ricardoproject.literalura.service.ConsumoAPI;
 import com.ricardoproject.literalura.service.ConvierteDatos;
 
 import java.util.*;
+
 
 public class Principal {
     private final String URL_BASE = "https://gutendex.com/books/?search=";
@@ -15,8 +17,20 @@ public class Principal {
     private ConsumoAPI consumoAPI = new ConsumoAPI();
     private ConvierteDatos conversor = new ConvierteDatos();
     private List<Datos> datosLibros = new ArrayList<>();
+    private List<Libro> libros;
+    private List<Autor> autor;
+    private LibroRepository repositorio;
+    private AutorRepository repositoryAutor;
+
+    public Principal(LibroRepository repository, AutorRepository repositoryAutor) {
+        this.repositorio = repository;
+        this.repositoryAutor = repositoryAutor;
+    }
+
 
     public void muestraElMenu() {
+
+        //inyeccion de dependencias
         var opcion = -1;
         while (opcion != 0) {
             var menu = """
@@ -58,7 +72,7 @@ public class Principal {
             }
         }
     }
-
+/*
     private Datos getDatosLibro() {
         System.out.println("Escribe el nombre del libro que deseas buscar:\n");
         var nombreLibro = teclado.nextLine();
@@ -74,15 +88,55 @@ public class Principal {
     }
 
     private void buscarLibroPorTitulo() {
-        Datos datosLibro = getDatosLibro();
-        datosLibros.add(datosLibro);
+        Datos datos = getDatosLibro();
+        //datosLibros.add(datos);
+        Libro libro = new Libro(datos);
+        repositorio.save(libro);
     }
+
+ */
+
+    public void buscarLibroPorTitulo() {
+        System.out.println("Escribe el nombre del libro que deseas buscar:\n");
+        var nombreLibro = teclado.nextLine();
+        var json = consumoAPI.obtenerDatos(URL_BASE +
+                nombreLibro.replace(" ", "+") +
+                SEARCH_COMPLEMENT);
+        Datos datos = conversor.obtenerDatos(json, Datos.class);
+
+        Optional<DatosLibro> datosLibroBuscado = datos.resultados().stream()
+                .filter(l -> l.libro().toUpperCase().contains(nombreLibro.toUpperCase()))
+                .findFirst();
+
+        if (datosLibroBuscado.isPresent()){
+            DatosLibro datosLibro = datosLibroBuscado.get();
+            DatosAutor datosAutor = datosLibro.autores().get(0);
+            Autor autor1 = repositoryAutor.findByNombreAutor(datosAutor.nombreAutor());
+
+            if(autor == null){
+                autor1 = new Autor(datosAutor);
+                repositoryAutor.save(autor1);
+            }
+            Libro libro = repositorio.findByTituloContainsIgnoreCase(datosLibro.libro());
+
+            if (libro == null){
+                System.out.println("Petición encontrada");
+                libro = new Libro(datosLibro, autor1);
+                repositorio.save(libro);
+            }else {
+                System.out.println("El libro ya se encuentra registrado");
+            }
+        } else {
+            System.out.println("Libro no encontrado");
+        }
+    }
+
 
     private void mostrarLibrosBuscados() {
         for (Datos datos : datosLibros) {
             datos.resultados()
-                    .stream().limit(1)
-            .forEach(this::imprimirDatosLibros);
+                    .stream()
+                    .forEach(this::imprimirDatosLibros);
         }
     }
 
@@ -140,7 +194,6 @@ public class Principal {
                 .flatMap(datos -> datos.resultados().stream())
                 .filter(libro -> libro.autores().stream()
                         .anyMatch(autor -> autorEstabaVivoEnAño(autor, año)))
-                .limit(1)
                 .forEach(libro -> imprimirDatosLibros(libro));
     }
 
